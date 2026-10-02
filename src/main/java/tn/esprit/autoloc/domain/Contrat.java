@@ -6,6 +6,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -26,4 +29,10 @@ public class Contrat {
     private BigDecimal montantTotal;
     @Column(nullable = false)
     private boolean valide;
+
+    @OneToOne
+    private Reservation reservation;
+
+    @OneToMany(mappedBy = "contrat", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Paiement> paiements = new HashSet<>();
 }
