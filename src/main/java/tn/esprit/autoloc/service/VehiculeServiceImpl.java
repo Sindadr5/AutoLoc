@@ -1,14 +1,12 @@
-package tn.esprit.autoloc.Services;
-
-import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import tn.esprit.autoloc.domain.StatutVehicule;
-import tn.esprit.autoloc.domain.Vehicule;
-import tn.esprit.autoloc.repository.IVehiculeRepository;
+package tn.esprit.autoloc.service;
 
 import java.util.List;
+import java.util.Objects;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import tn.esprit.autoloc.domain.Vehicule;
+import tn.esprit.autoloc.exception.ResourceNotFoundException;
+import tn.esprit.autoloc.repository.IVehiculeRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -17,38 +15,33 @@ public class VehiculeServiceImpl implements IVehiculeService {
     private final IVehiculeRepository vehiculeRepository;
 
     @Override
-    @Transactional
-    public Vehicule ajouter(Vehicule vehicule) {
+    public Vehicule create(Vehicule vehicule) {
+        if (vehicule.getIdVehicule() != null) {
+            throw new IllegalArgumentException("Un nouveau vehicule ne doit pas avoir d'identifiant");
+        }
+        valider(vehicule);
         if (vehiculeRepository.existsByImmatriculation(vehicule.getImmatriculation())) {
             throw new IllegalArgumentException("Immatriculation deja utilisee : " + vehicule.getImmatriculation());
         }
-        vehicule.setIdVehicule(null); // id null : INSERT
         return vehiculeRepository.save(vehicule);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<Vehicule> recupererTous() {
+    public Vehicule findById(Long id) {
+        return vehiculeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicule", id));
+    }
+
+    @Override
+    public List<Vehicule> findAll() {
         return vehiculeRepository.findAll();
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Vehicule recupererParId(Long id) {
-        return trouverOuErreur(id);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Vehicule> recupererParStatut(StatutVehicule statut) {
-        return vehiculeRepository.findByStatut(statut);
-    }
-
-    @Override
-    @Transactional
-    public Vehicule modifier(Long id, Vehicule vehicule) {
-        Vehicule existant = trouverOuErreur(id); // methode privee : pas d'appel @Transactional via this (S6809)
-        if (!existant.getImmatriculation().equals(vehicule.getImmatriculation())
+    public Vehicule update(Long id, Vehicule vehicule) {
+        Vehicule existant = findById(id);
+        valider(vehicule);
+        if (!Objects.equals(existant.getImmatriculation(), vehicule.getImmatriculation())
                 && vehiculeRepository.existsByImmatriculation(vehicule.getImmatriculation())) {
             throw new IllegalArgumentException("Immatriculation deja utilisee : " + vehicule.getImmatriculation());
         }
@@ -63,16 +56,19 @@ public class VehiculeServiceImpl implements IVehiculeService {
     }
 
     @Override
-    @Transactional
-    public void supprimer(Long id) {
+    public void deleteById(Long id) {
         if (!vehiculeRepository.existsById(id)) {
-            throw new EntityNotFoundException("Vehicule introuvable : id=" + id);
+            throw new ResourceNotFoundException("Vehicule", id);
         }
         vehiculeRepository.deleteById(id);
     }
 
-    private Vehicule trouverOuErreur(Long id) {
-        return vehiculeRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Vehicule introuvable : id=" + id));
+    private void valider(Vehicule vehicule) {
+        if (vehicule.getImmatriculation() == null || vehicule.getImmatriculation().isBlank()) {
+            throw new IllegalArgumentException("L'immatriculation du vehicule est obligatoire");
+        }
+        if (vehicule.getTarifJournalier() != null && vehicule.getTarifJournalier().signum() < 0) {
+            throw new IllegalArgumentException("Le tarif journalier ne peut pas etre negatif");
+        }
     }
 }
