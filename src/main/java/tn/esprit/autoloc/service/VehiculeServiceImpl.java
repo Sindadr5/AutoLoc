@@ -1,58 +1,58 @@
 package tn.esprit.autoloc.service;
 
 import java.util.List;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tn.esprit.autoloc.domain.Agence;
 import tn.esprit.autoloc.domain.Vehicule;
+import tn.esprit.autoloc.exception.DuplicateResourceException;
 import tn.esprit.autoloc.exception.ResourceNotFoundException;
+import tn.esprit.autoloc.mapper.VehiculeMapper;
+import tn.esprit.autoloc.repository.IAgenceRepository;
 import tn.esprit.autoloc.repository.IVehiculeRepository;
+import tn.esprit.autoloc.web.dto.VehiculeRequest;
+import tn.esprit.autoloc.web.dto.VehiculeResponse;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class VehiculeServiceImpl implements IVehiculeService {
 
     private final IVehiculeRepository vehiculeRepository;
+    private final IAgenceRepository agenceRepository;
+    private final VehiculeMapper vehiculeMapper;
 
     @Override
-    public Vehicule create(Vehicule vehicule) {
-        if (vehicule.getIdVehicule() != null) {
-            throw new IllegalArgumentException("Un nouveau vehicule ne doit pas avoir d'identifiant");
+    public VehiculeResponse create(VehiculeRequest request) {
+        if (vehiculeRepository.existsByImmatriculation(request.immatriculation())) {
+            throw new DuplicateResourceException("Immatriculation deja utilisee : " + request.immatriculation());
         }
-        valider(vehicule);
-        if (vehiculeRepository.existsByImmatriculation(vehicule.getImmatriculation())) {
-            throw new IllegalArgumentException("Immatriculation deja utilisee : " + vehicule.getImmatriculation());
-        }
-        return vehiculeRepository.save(vehicule);
+        Vehicule vehicule = vehiculeMapper.toEntity(request, chargerAgence(request.agenceId()));
+        return vehiculeMapper.toResponse(vehiculeRepository.save(vehicule));
     }
 
     @Override
-    public Vehicule findById(Long id) {
-        return vehiculeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicule", id));
+    @Transactional(readOnly = true)
+    public VehiculeResponse findById(Long id) {
+        return vehiculeMapper.toResponse(trouverOuErreur(id));
     }
 
     @Override
-    public List<Vehicule> findAll() {
-        return vehiculeRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<VehiculeResponse> findAll() {
+        return vehiculeRepository.findAll().stream().map(vehiculeMapper::toResponse).toList();
     }
 
     @Override
-    public Vehicule update(Long id, Vehicule vehicule) {
-        Vehicule existant = findById(id);
-        valider(vehicule);
-        if (!Objects.equals(existant.getImmatriculation(), vehicule.getImmatriculation())
-                && vehiculeRepository.existsByImmatriculation(vehicule.getImmatriculation())) {
-            throw new IllegalArgumentException("Immatriculation deja utilisee : " + vehicule.getImmatriculation());
+    public VehiculeResponse update(Long id, VehiculeRequest request) {
+        Vehicule existant = trouverOuErreur(id);
+        if (!existant.getImmatriculation().equals(request.immatriculation())
+                && vehiculeRepository.existsByImmatriculation(request.immatriculation())) {
+            throw new DuplicateResourceException("Immatriculation deja utilisee : " + request.immatriculation());
         }
-        existant.setImmatriculation(vehicule.getImmatriculation());
-        existant.setMarque(vehicule.getMarque());
-        existant.setModele(vehicule.getModele());
-        existant.setCategorie(vehicule.getCategorie());
-        existant.setTarifJournalier(vehicule.getTarifJournalier());
-        existant.setStatut(vehicule.getStatut());
-        existant.setAgence(vehicule.getAgence());
-        return vehiculeRepository.save(existant);
+        vehiculeMapper.updateEntity(request, chargerAgence(request.agenceId()), existant);
+        return vehiculeMapper.toResponse(vehiculeRepository.save(existant));
     }
 
     @Override
@@ -63,12 +63,16 @@ public class VehiculeServiceImpl implements IVehiculeService {
         vehiculeRepository.deleteById(id);
     }
 
-    private void valider(Vehicule vehicule) {
-        if (vehicule.getImmatriculation() == null || vehicule.getImmatriculation().isBlank()) {
-            throw new IllegalArgumentException("L'immatriculation du vehicule est obligatoire");
+    private Vehicule trouverOuErreur(Long id) {
+        return vehiculeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicule", id));
+    }
+
+    private Agence chargerAgence(Long agenceId) {
+        if (agenceId == null) {
+            return null;
         }
-        if (vehicule.getTarifJournalier() != null && vehicule.getTarifJournalier().signum() < 0) {
-            throw new IllegalArgumentException("Le tarif journalier ne peut pas etre negatif");
-        }
+        return agenceRepository.findById(agenceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Agence", agenceId));
     }
 }

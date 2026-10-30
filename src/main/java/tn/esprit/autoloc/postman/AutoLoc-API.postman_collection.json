@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "AutoLoc API - Atelier 5",
+    "name": "AutoLoc API - DTO et validation",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -179,7 +179,7 @@
           ]
         },
         {
-          "name": "Creer une agence sans nom (400)",
+          "name": "Creer une agence invalide (400 validation)",
           "request": {
             "method": "POST",
             "header": [
@@ -200,7 +200,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ville\": \"Tunis\"\n}",
+              "raw": "{\n  \"nom\": \"\",\n  \"ville\": \"Tunis\",\n  \"adresse\": \"Rue 1\",\n  \"telephone\": \"abc\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -214,7 +214,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Statut 400', function () { pm.response.to.have.status(400); });"
+                  "pm.test('Statut 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Erreurs par champ', function () { const e = pm.response.json().errors; pm.expect(e).to.have.property('nom'); pm.expect(e).to.have.property('telephone'); });"
                 ]
               }
             }
@@ -370,7 +371,7 @@
           ]
         },
         {
-          "name": "Creer un vehicule avec tarif negatif (400)",
+          "name": "Creer un vehicule invalide (400 validation)",
           "request": {
             "method": "POST",
             "header": [
@@ -391,7 +392,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"immatriculation\": \"TN-NEG-{{$timestamp}}\",\n  \"marque\": \"Fiat\",\n  \"modele\": \"500\",\n  \"categorie\": \"CITADINE\",\n  \"tarifJournalier\": -5,\n  \"statut\": \"DISPONIBLE\"\n}",
+              "raw": "{\n  \"immatriculation\": \"\",\n  \"marque\": \"Fiat\",\n  \"modele\": \"500\",\n  \"tarifJournalier\": -5\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -405,7 +406,50 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Statut 400', function () { pm.response.to.have.status(400); });"
+                  "pm.test('Statut 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Erreurs par champ', function () { const e = pm.response.json().errors; pm.expect(e).to.have.property('immatriculation'); pm.expect(e).to.have.property('tarifJournalier'); pm.expect(e).to.have.property('categorie'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Creer un vehicule avec agence inexistante (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"immatriculation\": \"TN-AG-{{$timestamp}}\",\n  \"marque\": \"Fiat\",\n  \"modele\": \"500\",\n  \"categorie\": \"CITADINE\",\n  \"tarifJournalier\": 60,\n  \"statut\": \"DISPONIBLE\",\n  \"agenceId\": 999999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vehicules"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Statut 404', function () { pm.response.to.have.status(404); });"
                 ]
               }
             }
@@ -571,7 +615,7 @@
           ]
         },
         {
-          "name": "Creer un client avec e-mail deja utilise (400)",
+          "name": "Creer un client avec e-mail deja utilise (409)",
           "request": {
             "method": "POST",
             "header": [
@@ -606,7 +650,50 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Statut 400', function () { pm.response.to.have.status(400); });"
+                  "pm.test('Statut 409 (doublon)', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Creer un client invalide (400 validation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"\",\n  \"prenom\": \"Sami\",\n  \"email\": \"pas-un-email\",\n  \"numPermis\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clients"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Statut 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Erreurs par champ', function () { const e = pm.response.json().errors; pm.expect(e).to.have.property('nom'); pm.expect(e).to.have.property('email'); pm.expect(e).to.have.property('numPermis'); });"
                 ]
               }
             }

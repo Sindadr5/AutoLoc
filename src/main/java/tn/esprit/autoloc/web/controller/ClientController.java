@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import tn.esprit.autoloc.service.IClientService;
-import tn.esprit.autoloc.web.dto.ClientDto;
+import tn.esprit.autoloc.web.dto.ClientRequest;
+import tn.esprit.autoloc.web.dto.ClientResponse;
 
 @RestController
 @RequestMapping("/api/clients")
@@ -34,52 +36,58 @@ public class ClientController {
     @Operation(summary = "Creer un client", description = "Cree un client. L'identifiant est genere par la base.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Creation reussie",
-                    content = @Content(schema = @Schema(implementation = ClientDto.class))),
-            @ApiResponse(responseCode = "400", description = "Donnees invalides ou deja existantes",
+                    content = @Content(schema = @Schema(implementation = ClientResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Donnees invalides (detail dans le champ errors)",
+                    content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
+            @ApiResponse(responseCode = "409", description = "Valeur deja existante (doublon)",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ClientDto create(@RequestBody ClientDto dto) {
-        return ClientDto.from(clientService.create(dto.toEntity()));
+    public ClientResponse create(@Valid @RequestBody ClientRequest request) {
+        return clientService.create(request);
     }
 
     @Operation(summary = "Lister les clients", description = "Retourne tous les clients.")
     @ApiResponse(responseCode = "200", description = "Liste retournee",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClientDto.class))))
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClientResponse.class))))
     @GetMapping
-    public List<ClientDto> findAll() {
-        return clientService.findAll().stream().map(ClientDto::from).toList();
+    public List<ClientResponse> findAll() {
+        return clientService.findAll();
     }
 
     @Operation(summary = "Consulter un client par identifiant")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Trouve",
-                    content = @Content(schema = @Schema(implementation = ClientDto.class))),
+                    content = @Content(schema = @Schema(implementation = ClientResponse.class))),
             @ApiResponse(responseCode = "404", description = "Identifiant introuvable",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping("/{id}")
-    public ClientDto findById(@PathVariable Long id) {
-        return ClientDto.from(clientService.findById(id));
+    public ClientResponse findById(@PathVariable Long id) {
+        return clientService.findById(id);
     }
 
     @Operation(summary = "Modifier un client", description = "Remplace les attributs modifiables de un client existant.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Modification reussie",
-                    content = @Content(schema = @Schema(implementation = ClientDto.class))),
-            @ApiResponse(responseCode = "400", description = "Donnees invalides",
+                    content = @Content(schema = @Schema(implementation = ClientResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Donnees invalides (detail dans le champ errors)",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class))),
             @ApiResponse(responseCode = "404", description = "Identifiant introuvable",
                     content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
+            @ApiResponse(responseCode = "409", description = "Valeur deja existante (doublon)",
+                    content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @PutMapping("/{id}")
-    public ClientDto update(@PathVariable Long id, @RequestBody ClientDto dto) {
-        return ClientDto.from(clientService.update(id, dto.toEntity()));
+    public ClientResponse update(@PathVariable Long id, @Valid @RequestBody ClientRequest request) {
+        return clientService.update(id, request);
     }
 
     @Operation(summary = "Supprimer un client")

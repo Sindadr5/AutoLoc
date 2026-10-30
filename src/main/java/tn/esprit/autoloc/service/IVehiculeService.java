@@ -1,17 +1,18 @@
 package tn.esprit.autoloc.service;
 
 import java.util.List;
-import tn.esprit.autoloc.domain.Vehicule;
+import tn.esprit.autoloc.web.dto.VehiculeRequest;
+import tn.esprit.autoloc.web.dto.VehiculeResponse;
 
 public interface IVehiculeService {
 
-    Vehicule create(Vehicule vehicule); // refuse un id non null
+    VehiculeResponse create(VehiculeRequest request);
 
-    Vehicule findById(Long id); // ResourceNotFoundException si absent
+    VehiculeResponse findById(Long id); // ResourceNotFoundException si absent
 
-    List<Vehicule> findAll();
+    List<VehiculeResponse> findAll();
 
-    Vehicule update(Long id, Vehicule vehicule); // charge l'existant, recopie, save
+    VehiculeResponse update(Long id, VehiculeRequest request);
 
     void deleteById(Long id); // ResourceNotFoundException si absent
 }

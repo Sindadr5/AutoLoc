@@ -1,17 +1,18 @@
 package tn.esprit.autoloc.service;
 
 import java.util.List;
-import tn.esprit.autoloc.domain.Client;
+import tn.esprit.autoloc.web.dto.ClientRequest;
+import tn.esprit.autoloc.web.dto.ClientResponse;
 
 public interface IClientService {
 
-    Client create(Client client); // refuse un id non null
+    ClientResponse create(ClientRequest request);
 
-    Client findById(Long id); // ResourceNotFoundException si absent
+    ClientResponse findById(Long id); // ResourceNotFoundException si absent
 
-    List<Client> findAll();
+    List<ClientResponse> findAll();
 
-    Client update(Long id, Client client); // charge l'existant, recopie, save
+    ClientResponse update(Long id, ClientRequest request);
 
     void deleteById(Long id); // ResourceNotFoundException si absent
 }

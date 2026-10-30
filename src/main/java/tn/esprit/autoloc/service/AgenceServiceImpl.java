@@ -3,45 +3,45 @@ package tn.esprit.autoloc.service;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.autoloc.domain.Agence;
 import tn.esprit.autoloc.exception.ResourceNotFoundException;
+import tn.esprit.autoloc.mapper.AgenceMapper;
 import tn.esprit.autoloc.repository.IAgenceRepository;
+import tn.esprit.autoloc.web.dto.AgenceRequest;
+import tn.esprit.autoloc.web.dto.AgenceResponse;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AgenceServiceImpl implements IAgenceService {
 
     private final IAgenceRepository agenceRepository;
+    private final AgenceMapper agenceMapper;
 
     @Override
-    public Agence create(Agence agence) {
-        if (agence.getIdAgence() != null) {
-            throw new IllegalArgumentException("Une nouvelle agence ne doit pas avoir d'identifiant");
-        }
-        valider(agence);
-        return agenceRepository.save(agence);
+    public AgenceResponse create(AgenceRequest request) {
+        Agence agence = agenceMapper.toEntity(request);
+        return agenceMapper.toResponse(agenceRepository.save(agence));
     }
 
     @Override
-    public Agence findById(Long id) {
-        return agenceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Agence", id));
+    @Transactional(readOnly = true)
+    public AgenceResponse findById(Long id) {
+        return agenceMapper.toResponse(trouverOuErreur(id));
     }
 
     @Override
-    public List<Agence> findAll() {
-        return agenceRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<AgenceResponse> findAll() {
+        return agenceRepository.findAll().stream().map(agenceMapper::toResponse).toList();
     }
 
     @Override
-    public Agence update(Long id, Agence agence) {
-        Agence existant = findById(id);
-        valider(agence);
-        existant.setNom(agence.getNom());
-        existant.setVille(agence.getVille());
-        existant.setAdresse(agence.getAdresse());
-        existant.setTelephone(agence.getTelephone());
-        return agenceRepository.save(existant);
+    public AgenceResponse update(Long id, AgenceRequest request) {
+        Agence existante = trouverOuErreur(id);
+        agenceMapper.updateEntity(request, existante);
+        return agenceMapper.toResponse(agenceRepository.save(existante));
     }
 
     @Override
@@ -52,9 +52,8 @@ public class AgenceServiceImpl implements IAgenceService {
         agenceRepository.deleteById(id);
     }
 
-    private void valider(Agence agence) {
-        if (agence.getNom() == null || agence.getNom().isBlank()) {
-            throw new IllegalArgumentException("Le nom de l'agence est obligatoire");
-        }
+    private Agence trouverOuErreur(Long id) {
+        return agenceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Agence", id));
     }
 }

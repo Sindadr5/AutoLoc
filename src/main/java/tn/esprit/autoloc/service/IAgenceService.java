@@ -1,17 +1,18 @@
 package tn.esprit.autoloc.service;
 
 import java.util.List;
-import tn.esprit.autoloc.domain.Agence;
+import tn.esprit.autoloc.web.dto.AgenceRequest;
+import tn.esprit.autoloc.web.dto.AgenceResponse;
 
 public interface IAgenceService {
 
-    Agence create(Agence agence); // refuse un id non null
+    AgenceResponse create(AgenceRequest request);
 
-    Agence findById(Long id); // ResourceNotFoundException si absent
+    AgenceResponse findById(Long id); // ResourceNotFoundException si absent
 
-    List<Agence> findAll();
+    List<AgenceResponse> findAll();
 
-    Agence update(Long id, Agence agence); // charge l'existant, recopie, save
+    AgenceResponse update(Long id, AgenceRequest request);
 
     void deleteById(Long id); // ResourceNotFoundException si absent
 }

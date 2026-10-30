@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,10 +21,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import tn.esprit.autoloc.domain.Agence;
-import tn.esprit.autoloc.service.IAgenceService;
 import tn.esprit.autoloc.service.IVehiculeService;
-import tn.esprit.autoloc.web.dto.VehiculeDto;
+import tn.esprit.autoloc.web.dto.VehiculeRequest;
+import tn.esprit.autoloc.web.dto.VehiculeResponse;
 
 @RestController
 @RequestMapping("/api/vehicules")
@@ -32,57 +32,65 @@ import tn.esprit.autoloc.web.dto.VehiculeDto;
 public class VehiculeController {
 
     private final IVehiculeService vehiculeService;
-    private final IAgenceService agenceService;
 
     @Operation(summary = "Creer un vehicule", description = "Cree un vehicule. L'identifiant est genere par la base.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Creation reussie",
-                    content = @Content(schema = @Schema(implementation = VehiculeDto.class))),
-            @ApiResponse(responseCode = "400", description = "Donnees invalides ou deja existantes",
+                    content = @Content(schema = @Schema(implementation = VehiculeResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Donnees invalides (detail dans le champ errors)",
+                    content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
+            @ApiResponse(responseCode = "409", description = "Valeur deja existante (doublon)",
+                    content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
+            @ApiResponse(responseCode = "404", description = "Agence indiquee introuvable",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public VehiculeDto create(@RequestBody VehiculeDto dto) {
-        return VehiculeDto.from(vehiculeService.create(dto.toEntity(chargerAgence(dto.agenceId()))));
+    public VehiculeResponse create(@Valid @RequestBody VehiculeRequest request) {
+        return vehiculeService.create(request);
     }
 
     @Operation(summary = "Lister les vehicules", description = "Retourne tous les vehicules.")
     @ApiResponse(responseCode = "200", description = "Liste retournee",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = VehiculeDto.class))))
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = VehiculeResponse.class))))
     @GetMapping
-    public List<VehiculeDto> findAll() {
-        return vehiculeService.findAll().stream().map(VehiculeDto::from).toList();
+    public List<VehiculeResponse> findAll() {
+        return vehiculeService.findAll();
     }
 
     @Operation(summary = "Consulter un vehicule par identifiant")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Trouve",
-                    content = @Content(schema = @Schema(implementation = VehiculeDto.class))),
+                    content = @Content(schema = @Schema(implementation = VehiculeResponse.class))),
             @ApiResponse(responseCode = "404", description = "Identifiant introuvable",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping("/{id}")
-    public VehiculeDto findById(@PathVariable Long id) {
-        return VehiculeDto.from(vehiculeService.findById(id));
+    public VehiculeResponse findById(@PathVariable Long id) {
+        return vehiculeService.findById(id);
     }
 
     @Operation(summary = "Modifier un vehicule", description = "Remplace les attributs modifiables de un vehicule existant.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Modification reussie",
-                    content = @Content(schema = @Schema(implementation = VehiculeDto.class))),
-            @ApiResponse(responseCode = "400", description = "Donnees invalides",
+                    content = @Content(schema = @Schema(implementation = VehiculeResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Donnees invalides (detail dans le champ errors)",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class))),
             @ApiResponse(responseCode = "404", description = "Identifiant introuvable",
                     content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
+            @ApiResponse(responseCode = "409", description = "Valeur deja existante (doublon)",
+                    content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @PutMapping("/{id}")
-    public VehiculeDto update(@PathVariable Long id, @RequestBody VehiculeDto dto) {
-        return VehiculeDto.from(vehiculeService.update(id, dto.toEntity(chargerAgence(dto.agenceId()))));
+    public VehiculeResponse update(@PathVariable Long id, @Valid @RequestBody VehiculeRequest request) {
+        return vehiculeService.update(id, request);
     }
 
     @Operation(summary = "Supprimer un vehicule")
@@ -99,9 +107,5 @@ public class VehiculeController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteById(@PathVariable Long id) {
         vehiculeService.deleteById(id);
-    }
-
-    private Agence chargerAgence(Long agenceId) {
-        return agenceId == null ? null : agenceService.findById(agenceId); // 404 si l'agence n'existe pas
     }
 }

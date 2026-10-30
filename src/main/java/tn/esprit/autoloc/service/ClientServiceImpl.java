@@ -3,67 +3,63 @@ package tn.esprit.autoloc.service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.autoloc.domain.Client;
+import tn.esprit.autoloc.exception.DuplicateResourceException;
 import tn.esprit.autoloc.exception.ResourceNotFoundException;
+import tn.esprit.autoloc.mapper.ClientMapper;
 import tn.esprit.autoloc.repository.IClientRepository;
+import tn.esprit.autoloc.web.dto.ClientRequest;
+import tn.esprit.autoloc.web.dto.ClientResponse;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ClientServiceImpl implements IClientService {
 
     private final IClientRepository clientRepository;
+    private final ClientMapper clientMapper;
 
     @Override
-    public Client create(Client client) {
-        if (client.getIdClient() != null) {
-            throw new IllegalArgumentException("Un nouveau client ne doit pas avoir d'identifiant");
+    public ClientResponse create(ClientRequest request) {
+        if (clientRepository.existsByEmail(request.email())) {
+            throw new DuplicateResourceException("Email deja utilise : " + request.email());
         }
-        valider(client);
-        if (clientRepository.existsByEmail(client.getEmail())) {
-            throw new IllegalArgumentException("Email deja utilise : " + client.getEmail());
+        if (clientRepository.existsByNumPermis(request.numPermis())) {
+            throw new DuplicateResourceException("Numero de permis deja utilise : " + request.numPermis());
         }
-        if (client.getNumPermis() != null && clientRepository.existsByNumPermis(client.getNumPermis())) {
-            throw new IllegalArgumentException("Numero de permis deja utilise : " + client.getNumPermis());
-        }
+        Client client = clientMapper.toEntity(request);
         if (client.getDateInscription() == null) {
             client.setDateInscription(LocalDate.now(ZoneId.of("Africa/Tunis")));
         }
-        return clientRepository.save(client);
+        return clientMapper.toResponse(clientRepository.save(client));
     }
 
     @Override
-    public Client findById(Long id) {
-        return clientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Client", id));
+    @Transactional(readOnly = true)
+    public ClientResponse findById(Long id) {
+        return clientMapper.toResponse(trouverOuErreur(id));
     }
 
     @Override
-    public List<Client> findAll() {
-        return clientRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<ClientResponse> findAll() {
+        return clientRepository.findAll().stream().map(clientMapper::toResponse).toList();
     }
 
     @Override
-    public Client update(Long id, Client client) {
-        Client existant = findById(id);
-        valider(client);
-        if (!Objects.equals(existant.getEmail(), client.getEmail())
-                && clientRepository.existsByEmail(client.getEmail())) {
-            throw new IllegalArgumentException("Email deja utilise : " + client.getEmail());
+    public ClientResponse update(Long id, ClientRequest request) {
+        Client existant = trouverOuErreur(id);
+        if (!existant.getEmail().equals(request.email()) && clientRepository.existsByEmail(request.email())) {
+            throw new DuplicateResourceException("Email deja utilise : " + request.email());
         }
-        if (client.getNumPermis() != null
-                && !client.getNumPermis().equals(existant.getNumPermis())
-                && clientRepository.existsByNumPermis(client.getNumPermis())) {
-            throw new IllegalArgumentException("Numero de permis deja utilise : " + client.getNumPermis());
+        if (!request.numPermis().equals(existant.getNumPermis()) && clientRepository.existsByNumPermis(request.numPermis())) {
+            throw new DuplicateResourceException("Numero de permis deja utilise : " + request.numPermis());
         }
-        existant.setNom(client.getNom());
-        existant.setPrenom(client.getPrenom());
-        existant.setEmail(client.getEmail());
-        existant.setTelephone(client.getTelephone());
-        existant.setNumPermis(client.getNumPermis());
-        return clientRepository.save(existant);
+        clientMapper.updateEntity(request, existant);
+        return clientMapper.toResponse(clientRepository.save(existant));
     }
 
     @Override
@@ -74,12 +70,8 @@ public class ClientServiceImpl implements IClientService {
         clientRepository.deleteById(id);
     }
 
-    private void valider(Client client) {
-        if (client.getNom() == null || client.getNom().isBlank()) {
-            throw new IllegalArgumentException("Le nom du client est obligatoire");
-        }
-        if (client.getEmail() == null || client.getEmail().isBlank()) {
-            throw new IllegalArgumentException("L'e-mail du client est obligatoire");
-        }
+    private Client trouverOuErreur(Long id) {
+        return clientRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Client", id));
     }
 }

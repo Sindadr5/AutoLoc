@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import tn.esprit.autoloc.service.IAgenceService;
-import tn.esprit.autoloc.web.dto.AgenceDto;
+import tn.esprit.autoloc.web.dto.AgenceRequest;
+import tn.esprit.autoloc.web.dto.AgenceResponse;
 
 @RestController
 @RequestMapping("/api/agences")
@@ -34,52 +36,58 @@ public class AgenceController {
     @Operation(summary = "Creer une agence", description = "Cree une agence. L'identifiant est genere par la base.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Creation reussie",
-                    content = @Content(schema = @Schema(implementation = AgenceDto.class))),
-            @ApiResponse(responseCode = "400", description = "Donnees invalides ou deja existantes",
+                    content = @Content(schema = @Schema(implementation = AgenceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Donnees invalides (detail dans le champ errors)",
+                    content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
+            @ApiResponse(responseCode = "409", description = "Valeur deja existante (doublon)",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public AgenceDto create(@RequestBody AgenceDto dto) {
-        return AgenceDto.from(agenceService.create(dto.toEntity()));
+    public AgenceResponse create(@Valid @RequestBody AgenceRequest request) {
+        return agenceService.create(request);
     }
 
     @Operation(summary = "Lister les agences", description = "Retourne tous les agences.")
     @ApiResponse(responseCode = "200", description = "Liste retournee",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = AgenceDto.class))))
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = AgenceResponse.class))))
     @GetMapping
-    public List<AgenceDto> findAll() {
-        return agenceService.findAll().stream().map(AgenceDto::from).toList();
+    public List<AgenceResponse> findAll() {
+        return agenceService.findAll();
     }
 
     @Operation(summary = "Consulter une agence par identifiant")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Trouve",
-                    content = @Content(schema = @Schema(implementation = AgenceDto.class))),
+                    content = @Content(schema = @Schema(implementation = AgenceResponse.class))),
             @ApiResponse(responseCode = "404", description = "Identifiant introuvable",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping("/{id}")
-    public AgenceDto findById(@PathVariable Long id) {
-        return AgenceDto.from(agenceService.findById(id));
+    public AgenceResponse findById(@PathVariable Long id) {
+        return agenceService.findById(id);
     }
 
     @Operation(summary = "Modifier une agence", description = "Remplace les attributs modifiables de une agence existant.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Modification reussie",
-                    content = @Content(schema = @Schema(implementation = AgenceDto.class))),
-            @ApiResponse(responseCode = "400", description = "Donnees invalides",
+                    content = @Content(schema = @Schema(implementation = AgenceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Donnees invalides (detail dans le champ errors)",
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class))),
             @ApiResponse(responseCode = "404", description = "Identifiant introuvable",
                     content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
+            @ApiResponse(responseCode = "409", description = "Valeur deja existante (doublon)",
+                    content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     @PutMapping("/{id}")
-    public AgenceDto update(@PathVariable Long id, @RequestBody AgenceDto dto) {
-        return AgenceDto.from(agenceService.update(id, dto.toEntity()));
+    public AgenceResponse update(@PathVariable Long id, @Valid @RequestBody AgenceRequest request) {
+        return agenceService.update(id, request);
     }
 
     @Operation(summary = "Supprimer une agence")
